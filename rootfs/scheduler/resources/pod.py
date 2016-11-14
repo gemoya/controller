@@ -120,6 +120,7 @@ class Pod(Resource):
             'spec': {}
         }
 
+
         # pod manifest spec
         spec = manifest['spec']
 
@@ -131,6 +132,48 @@ class Pod(Resource):
 
         # How long until a pod is forcefully terminated. 30 is kubernetes default
         spec['terminationGracePeriodSeconds'] = kwargs.get('pod_termination_grace_period_seconds', 30)  # noqa
+
+        ########################################################
+
+        tags = kwargs.get('tags')
+        # tags:
+        # storage: rwo, rwx,
+        # mountPath: /some/path
+        # size: 1Gi, 5Gi, 10Gi, etc
+        
+        # name volume =  $name + "-" + "pv"
+        # kwargs.get('tags')[storage] = rwo ??
+        if (tags['storage'] == 'rwo'):
+            spec['volumes'] = [
+                {
+                    'name': name,
+                    'persistentVolumeClaim': {
+                        "claimName": 'pvc'+'-'+name,
+                    }
+                }
+            ]
+
+            claimTemplate = {
+                "kind": "PersistentVolumeClaim",
+                "apiVersion": "v1",
+                "metadata": {
+                    "name": "pvc"+"-"+name,
+                    "annotations": {
+                        "volume.beta.kubernetes.io/storage-class": "slow"
+                    }
+                },
+                "spec": {
+                    "accessModes": [
+                        "ReadWriteOnce"
+                    ],
+                    "resources": {
+                        "requests": {
+                            "storage": tags['size']
+                        }
+                    }
+                }
+            }
+
 
         # Check if it is a slug builder image.
         if build_type == "buildpack":
